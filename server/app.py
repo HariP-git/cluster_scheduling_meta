@@ -36,7 +36,7 @@ except Exception as e:  # pragma: no cover
     ) from e
 
 from scheduler.models import SchedulerAction, SchedulerObservation
-from scheduler.server.scheduler_environment import SchedulerEnvironment
+from server.scheduler_environment import SchedulerEnvironment
 
 
 # Create a singleton wrapper factory so HTTP REST calls (Swagger UI) maintain state sequentially
@@ -76,7 +76,7 @@ def main():
     args = parser.parse_args()
 
     uvicorn.run(
-        "scheduler.server.app:app" if args.reload else app,
+        "server.app:app" if args.reload else app,
         host=args.host,
         port=args.port,
         reload=args.reload,
