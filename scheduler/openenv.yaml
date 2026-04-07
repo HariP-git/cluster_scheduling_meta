@@ -1,0 +1,21 @@
+spec_version: 1
+name: scheduler
+description: A 6-stage cluster scheduler simulation representing a real-world HPC queuing and placement system.
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+difficulty_levels: 3
+reward_range: [0.0, 1.0]
+episode_length: 18
+tasks:
+  - id: scheduling
+    name: Cluster Scheduler Tasks
+    description: Evaluate agent's ability to maximize cluster fill rate
+    agent_graders:
+      - id: easy_grader
+        name: Easy Fit
+      - id: medium_grader
+        name: Medium Fit
+      - id: hard_grader
+        name: Hard Fit
