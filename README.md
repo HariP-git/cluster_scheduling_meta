@@ -1,3 +1,21 @@
+---
+title: ECS using RL - Cluster Scheduler
+emoji: 🤖
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+pinned: true
+app_port: 7860
+base_path: /
+tags:
+  - openenv
+  - reinforcement-learning
+  - cluster-scheduling
+  - deep-q-network
+  - fastapi
+  - rl
+---
+
 # 🚀 Dynamic Cluster Scheduling with Reinforcement Learning
 
 > **An OpenEnv-compliant, high-fidelity simulation for autonomous resource orchestration.**
