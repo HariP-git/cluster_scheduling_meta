@@ -12,168 +12,129 @@ tags:
   - rl
 ---
 
-# 🚀 Reinforcement Learning-based Cluster Scheduling Environment
+# 🚀 Dynamic Cluster Scheduling with Reinforcement Learning
 
-**ECS using RL** is an advanced, high-performance reinforcement learning environment built to simulate compute cluster scheduling. It provides a sequential, 6-stage pipeline that challenges autonomous agents to efficiently map dynamic computational tasks onto limited cluster resources.
+> **An OpenEnv-compliant, high-fidelity simulation for autonomous resource orchestration.**
 
-Suitable for research and hackathon submissions, this repository implements a real-world server infrastructure standard—enabling AI models to learn utilization maximization, load balancing, and failure minimization.
-
----
-
-## 🎯 1. Project Motivation
-Modern data centers and cloud clusters receive thousands of workloads per minute, each demanding varying CPU, Memory, and GPU footprints. Traditional heuristics (e.g., Round Robin, First-Fit) fail to anticipate future bottlenecks, leading to fragmented clusters and wasted compute capacity. 
-
-This project bridges Reinforcement Learning with Systems Engineering by framing cluster management strictly as an RL problem. By doing so, autonomous agents can learn complex placement patterns that yield higher cluster throughput, lower rejection rates, and perfectly balanced infrastructure.
+[![OpenEnv](https://img.shields.io/badge/OpenEnv-Framework-blue)](https://github.com/meta-llama/openenv)
+[![RL Environment](https://img.shields.io/badge/RL-Stable--Baselines3-green)](https://stable-baselines3.readthedocs.io/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688)](https://fastapi.tiangolo.com/)
 
 ---
 
-## 🌐 2. Environment Description
-The environment mimics a 10-node compute cluster. Each node has finite boundaries on three core resource dimensions:
-* **CPU Capacity**
-* **Memory Capacity**
-* **GPU Capacity**
+## 🎯 1. Project Overview & Goal
 
-Tasks arrive dynamically, expressing specific demands across these three dimensions. They also contain an expected "duration". The cluster operates under a near-max threshold (often pre-loaded at 70% capacity) to rigorously test the RL agent's capability to discover optimal fit locations without causing "Out of Memory" or "Out of Compute" rejections.
+The **Reinforcement Learning-based Cluster Scheduler** is a professional-grade environment designed to solve one of the most complex problems in cloud computing: **Optimal Resource Allocation.**
 
----
+### The Problem
+Traditional schedulers (Kubernetes, Slurm) rely on static heuristics like "First-Fit" or "Round-Robin." While reliable, these methods are "short-sighted"—they don't learn from cluster history and often lead to **Resource Fragmentation**, where small pockets of CPU/GPU are wasted because they are scattered across different nodes.
 
-## ⚙️ 3. Pipeline Explanation
-Every scheduling decision is broken down into a strict **6-Stage Pipeline** to mirror real orchestration software (like Kubernetes). The RL agent must successfully navigate all 6 stages synchronously.
-
-1. **Intake**: The task queue is processed. Incoming tasks are classified by difficulty and resource type, and priority routing is assigned.
-2. **Profiling**: The environment scans the current 10-node cluster state. It computes total utilization, identifies bottleneck risks, and prepares the telemetry state.
-3. **Matching**: The system calculates baseline candidate scores for each node against the pending task. Nodes without enough resources are eliminated.
-4. **Assignment (The RL Stage)*: This is where the RL agent makes its move. It analyzes the observation space and selects a `node_id` (0-9). The task is immediately dispatched.
-5. **Balancing**: Post-assignment, the environment evaluates the variance in load distribution across all 10 nodes to ensure the cluster remains balanced.
-6. **Monitoring**: The environment finalizes the step, computes the final normalized fractional rewards, verifies placement success, and reports the overall score.
+### Our Solution
+This project transforms cluster scheduling into a **Sequential Markov Decision Process (MDP)**. By breaking down the scheduling lifecycle into a strict 6-stage pipeline, we allow Deep Reinforcement Learning agents (like DQN) to learn the "geometry" of resource demand, resulting in significantly higher cluster pack-densities and lower task rejection rates.
 
 ---
 
-## 👁️ 4. Observation Space Definition
-The agent is provided a flattened continuous **State Vector** mapping the entire topography of the cluster and the incoming task. 
+## 🏗️ 2. System Architecture
 
-* **Nodes (0-29)**: The available CPU, Memory, and GPU capacities for all 10 nodes normalized between 0 and 1.
-* **Task Req (30-32)**: The specific CPU, Memory, and GPU demands of the incoming task.
-* **Stage ID (33)**: An integer (1-6) indicating the current phase of the pipeline.
-* **Queue Data (34)**: The remaining number of tasks waiting to be processed.
+The project follows the **OpenEnv standardized architecture**, ensuring separate concerns between the core environment logic, the data models, and the communication layer.
 
----
-
-## 🎮 5. Action Space Definition
-The RL Agent takes discrete actions depending on the stage of the pipeline. 
-
-During the critical **Stage 4 (Assignment)**, the action space is:
-* `Action`: Integer **`0` to `9`**
-* `Definition`: The target `node_id` where the agent chooses to deploy the incoming task.
-
----
-
-## 🏆 6. Reward Function
-The reward formula is designed specifically to encourage tight-packing (avoiding fragmentation) and balanced loads. It combines multiple factors evaluated across the stages:
-
-`Reward = 0.40 * (Utilization) + 0.30 * (Balance) + 0.30 * (Fit Quality) - Pending Penalties`
-
-Where:
-* **Utilization**: Ensures nodes are operating near optimal capacity ratios.
-* **Balance**: Minimizes capacity variance across the cluster (`1 - utilization_variance * 20`).
-* **Fit Quality**: Best-fit placement efficiency (`1 - wastage`).
-* **Penalties**: If a task is assigned to a node that does not possess enough free resources to host it, the placement fails, yielding a deeply penalized negative reward.
-
-Rewards are strictly normalized between `[-1.0, 1.0]`.
-
----
-
-## 📊 7. Task Difficulty Levels
-To correctly evaluate an agent's scheduling robustness, the environment exposes three tier levels of multi-task inferences:
-* **🟢 Easy**: Small footprint. `(CPU: 4, MEM: 4, GPU: 4, Duration: 2)`
-* **🟡 Medium**: Moderate footprint. `(CPU: 12, MEM: 12, GPU: 12, Duration: 5)`
-* **🔴 Hard**: Heavy footprint. Tests fragmentation boundaries. `(CPU: 24, MEM: 24, GPU: 24, Duration: 8)`
-
----
-
-## 🛠️ 8. Setup Instructions
-
-The project uses `uv` for lightning-fast package management. Ensure Python 3.10+ is installed.
-
-```bash
-# 1. Clone the repository
-git clone https://huggingface.co/spaces/hari-2006/ECS_using_RL
-cd ECS_using_RL
-
-# 2. Sync dependencies using uv
-uv sync
-
-# 3. (Alternative) Standard PiP installation
-pip install -e .
+```mermaid
+graph TD
+    A[User / Agent] -->|JSON Action| B[FastAPI Web Server]
+    B -->|Registry| C[Scheduler Environment]
+    C -->|Loop| D{6-Stage Pipeline}
+    
+    subgraph Pipeline stages
+        D1[Stage 1: Intake] --> D2[Stage 2: Profiling]
+        D2 --> D3[Stage 3: Matching]
+        D3 --> D4[Stage 4: Assignment]
+        D4 --> D5[Stage 5: Balancing]
+        D5 --> D6[Stage 6: Monitoring]
+    end
+    
+    D6 -->|State Observation| A
 ```
 
 ---
 
-## 💻 9. Usage Instructions
+## 🔄 3. The 6-Stage Pipeline Logic
 
-To launch the project, you need terminal instances for both the **Environment Server** and the **Agent / Inference script**.
+To mirror professional orchestrators (like Kubernetes), scheduling is not a single "jump." It is a sequence of stages that the agent must navigate:
 
-**Terminal 1 (Start the Server):**
+| Stage | Name | Data Responsibility | Reward Impact |
+| :--- | :--- | :--- | :--- |
+| **1** | **Intake** | Selects task difficulty (Easy/Med/Hard) and sets priority. | Demand Reward |
+| **2** | **Profiling** | Gathers telemetry on CPU, Memory, and GPU across 10 nodes. | Health Reward |
+| **3** | **Matching** | Filters out nodes that physically cannot fit the task. | Eligibility Reward |
+| **4** | **Assignment** | **The RL Choice:** The agent selects the target `node_id`. | Fit Quality Reward |
+| **5** | **Balancing** | Analyzes cluster-wide variance (Standard Deviation). | Variance Reward |
+| **6** | **Monitoring** | Finalizes placement and computes the **Total Reward**. | Success Reward |
+
+---
+
+## 🏆 4. The Reward Formula (The Math)
+
+The environment uses a multi-factor **Fractional Reward System**. Instead of just "success or failure," the agent receives granular feedback at every stage to accelerate learning.
+
+$$ Reward = 0.40 \times U + 0.30 \times B + 0.30 \times F - P $$
+
+*   **U (Utilization)**: Percentage of consumed cluster resources ($ \frac{\text{Used}}{\text{Total}} $).
+*   **B (Balance)**: Reward for low variance ($ 1 - (\sigma^2 \times 20) $).
+*   **F (Fit Quality)**: Reward for "tight packing" specifically on the chosen node.
+*   **P (Penalty)**: A heavy **-0.3** penalty if the agent attempts to place a task on a node that lacks resources.
+
+---
+
+## 🎮 5. How to use the Interactive Web UI
+
+This project features a vibrant, modern web interface. You can manually play the role of the scheduler to understand the constraints.
+
+### Steps to give input:
+1.  **Reset**: Click the **Reset** button to initialize a fresh 10-node cluster (pre-loaded at 70% capacity).
+2.  **Stage Selector**: Enter a number `1` through `6` in the **Stage Id** box.
+3.  **Step**: 
+    - At `Stage 1`, the system generates a new task.
+    - At `Stage 4`, the system automatically uses a **Best-Fit algorithm** to handle the placement based on your current state.
+4.  **Observation**: Watch the **Visible Cluster State** JSON update in real-time. It shows the free percentage of every node.
+5.  **Score**: At `Stage 6`, your **Total Reward** (0.0 to 1.0) will appear at the top of the UI.
+
+---
+
+## 🤖 6. How Automated Inference Works
+
+The `inference.py` script runs a rigorous **18-step benchmark** cycle across 3 tasks.
+
+1.  **Task 1 (Easy)**: Steps 1-6. Agent learns basic placement.
+2.  **Task 2 (Medium)**: Steps 7-12. Agent manages moderate load.
+3.  **Task 3 (Hard)**: Steps 13-18. Agent must find the final remaining "holes" in the cluster resources.
+
+**To run the check:**
 ```bash
-# Deploys on default Hugging Face Space port 7860
-uv run server
-```
-
-**Terminal 2 (Run Inference):**
-```bash
-# Sets your HF Token securely via your environment variable
-$env:HF_TOKEN="your_hugging_face_token_here" 
-
-# Execute the 18-step testing loop
 uv run python inference.py
 ```
+It will output a high-visibility summary at the end of every task, showing the agent's progress, its reward, and whether it successfully balanced the cluster.
 
 ---
 
-## 📝 10. Example Output Format
-When running `inference.py`, the console cleanly outputs logs aligned with the stage difficulty, `[START]`/`[END]` delineations, and precise step-tracking.
+## 🌟 7. Advantages of this Approach
 
-```text
-easy
-[START] task=schedule_jobs env=scheduler model=Qwen/Qwen2.5-72B-Instruct
-[STEP] step=1 action={"stage_id": 1} reward=0.20 done=false error=null
-[STEP] step=2 action={"stage_id": 2} reward=0.30 done=false error=null
-[STEP] step=3 action={"stage_id": 3} reward=1.00 done=false error=null
-[STEP] step=4 action={"stage_id": 4} reward=0.74 done=false error=null
-[STEP] step=5 action={"stage_id": 5} reward=1.00 done=false error=null
-[STEP] step=6 action={"stage_id": 6} reward=1.00 done=true error=null
-[END] success=true score=0.706 rewards=0.20,0.30,1.00,0.74,1.00,1.00
-
-medium
-...
-```
+1.  **Explainable AI**: Because of the 6-stage pipeline, you can see *exactly* at which stage an agent is failing (e.g., does it fail at Matching or Assignment?).
+2.  **Resource Multi-dimensionality**: Unlike simple simulators, we track **CPU, RAM, and GPU** independently. An agent might find a node with enough CPU but fail because it forgot to check GPU capacity.
+3.  **Horizontal Scalability**: The state vector is flattened, allowing the same agent to potentially scale to larger clusters by simply shifting the input window.
+4.  **Production Ready**: Built on **FastAPI** and **Docker**, this environment can be deployed as a microservice in an actual cloud lab.
 
 ---
 
-## 📈 11. Baseline Performance Comparison
-| Scheduler Type | Placement Success | Resource Fragmentation | Balancing Metric |
-| :--- | :---: | :---: | :---: |
-| **First-Fit Pattern** | 72% | High | Poor |
-| **Round Robin Algorithm** | 68% | Moderate | Average |
-| **Our Deep Q-Network (DQN)** | **94%** | **Low** | **Excellent** |
+## 📂 8. Project Layout
 
-*The DQN actively learns constraints dynamically, resulting in significantly fewer placement failures compared to static allocation models.*
-
----
-
-## 📂 12. Project Structure
-```
+```bash
 .
-├── Dockerfile               # Root configuration for Hugging Face Spaces
-├── README.md                # Project documentation
-├── pyproject.toml           # Package metadata and requirements 
-├── inference.py             # RL Multi-Difficulty Testing loop Script
 ├── scheduler/               
-│   ├── agent.py             # Bundled Deep Q-Network implementation
-│   ├── models.py            # SchedulerAction and SchedulerObservation Data Models
-│   ├── client.py            # Remote execution API Client
+│   ├── agent.py             # DQN Agent (PyTorch)
+│   ├── models.py            # Pydantic Data Models (Action/Observation)
 │   └── server/              
-│       ├── app.py           # FastAPI server entry point
-│       ├── scheduler_environment.py # Core environment loop controller
-│       └── modules/         # Strategy patterns housing all 6 pipeline stages
+│       ├── app.py           # FastAPI Entrypoint
+│       └── scheduler_env.py # Environment Core Logic
+├── inference.py             # High-speed benchmarking script
+└── Dockerfile               # HF Spaces Deployment Config
 ```
