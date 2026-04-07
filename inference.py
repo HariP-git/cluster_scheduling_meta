@@ -11,22 +11,26 @@ from scheduler.models import SchedulerAction
 from scheduler.client import SchedulerEnv
 
 # Load environment variables from .env file
-load_dotenv()
+# ── Pre-Submission Configuration ─────────────────────────────────────────────
+# 1. Defaults are set only for API_BASE_URL and MODEL_NAME (not HF_TOKEN)
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-# Check for API Key - switch to MOCK_MODE if missing
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
-MOCK_MODE = not API_KEY
+# Optional - for internal image testing
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "scheduler-env:latest")
+
+# 2. Check for API Key - switch to MOCK_MODE if missing (for demo purposes)
+MOCK_MODE = not HF_TOKEN
+API_KEY = HF_TOKEN
 
 if MOCK_MODE:
     print("\n" + "!" * 60)
-    print("⚠️  WARNING: NO HF_TOKEN FOUND in .env file.")
+    print("⚠️  WARNING: NO HF_TOKEN FOUND in environment variables.")
     print("🤖 SWITCHING TO MOCK AGENT MODE (No LLM required).")
     print("!" * 60 + "\n")
     MODEL_NAME = "Mock/Deterministic-Agent"
 
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct" if not MOCK_MODE else "Mock/Deterministic-Agent"
 TASK_NAME = os.getenv("SCHEDULER_TASK", "schedule_jobs")
 BENCHMARK = os.getenv("SCHEDULER_BENCHMARK", "scheduler")
 
