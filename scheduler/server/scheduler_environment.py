@@ -19,14 +19,7 @@ from uuid import uuid4
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
 
-try:
-    from ..models import SchedulerAction, SchedulerObservation
-except ImportError:
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from models import SchedulerAction, SchedulerObservation
+from scheduler.models import SchedulerAction, SchedulerObservation
 
 from .modules import (
     IntakeModule,

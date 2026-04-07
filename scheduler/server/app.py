@@ -35,16 +35,8 @@ except Exception as e:  # pragma: no cover
         "openenv is required for the web interface. Install dependencies with '\n    uv sync\n'"
     ) from e
 
-try:
-    from ..models import SchedulerAction, SchedulerObservation
-    from .scheduler_environment import SchedulerEnvironment
-except (ModuleNotFoundError, ImportError):
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from models import SchedulerAction, SchedulerObservation
-    from server.scheduler_environment import SchedulerEnvironment
+from scheduler.models import SchedulerAction, SchedulerObservation
+from scheduler.server.scheduler_environment import SchedulerEnvironment
 
 
 # Create a singleton wrapper factory so HTTP REST calls (Swagger UI) maintain state sequentially
