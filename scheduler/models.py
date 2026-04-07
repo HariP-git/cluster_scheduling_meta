@@ -14,20 +14,29 @@ of scheduling stages:
     intake → profiling → matching → assignment → balancing → monitoring
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from __future__ import annotations
+
+from typing import Any, ClassVar, Dict, List, Literal, Optional
 
 from openenv.core.env_server.types import Action, Observation
 from pydantic import Field
 
 
 class SchedulerAction(Action):
-    """Action for the Scheduler environment — sync stages and select difficulty."""
+    """Action for the Scheduler environment — advance through pipeline stages.
 
+    For the web UI only ``stage_id`` is shown.  The remaining fields are
+    used programmatically by the inference script / DQN agent.
+    """
+
+    # ── UI-visible field ─────────────────────────────────────────────────────
     stage_id: int = Field(
         ...,
-        description="Stage 1=intake  2=profiling  3=matching  4=assignment  5=balancing  6=monitoring",
+        description="Pipeline stage (1-6): intake → profiling → matching → assignment → balancing → monitoring",
         ge=1, le=6,
     )
+
+    # ── Agent-internal fields (hidden from UI, still accepted in JSON) ──────
     difficulty: Optional[Literal["easy", "medium", "hard"]] = Field(
         None,
         description=(
@@ -36,16 +45,28 @@ class SchedulerAction(Action):
             "Defaults to 'medium' if omitted."
         ),
     )
-    # ── Agent-internal (set by the DQN agent, not by the user) ──────────────
     assign_node_id: Optional[int] = Field(
         None,
-        description="Stage 4 — AGENT INTERNAL: node index chosen by DQN. Leave blank when calling manually.",
+        description="Stage 4 — node index chosen by the DQN agent.",
     )
-    # ── Fixed tasks (For inference override) ──────────────
     task_specs: Optional[Dict[str, int]] = Field(
         None,
-        description="Stage 1 only — optionally provide specific CPU/MEM/GPU required.",
+        description="Stage 1 only — specific CPU/MEM/GPU override for inference.",
     )
+
+    # Fields that appear in the web UI form
+    _UI_FIELDS: ClassVar[tuple[str, ...]] = ("stage_id",)
+
+    @classmethod
+    def model_json_schema(cls, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        """Return a trimmed schema exposing only ``stage_id`` to the web UI."""
+        full = super().model_json_schema(*args, **kwargs)
+        props = full.get("properties", {})
+        required = full.get("required", [])
+
+        full["properties"] = {k: v for k, v in props.items() if k in cls._UI_FIELDS}
+        full["required"] = [r for r in required if r in cls._UI_FIELDS]
+        return full
 
 
 class NodeState(Observation):
