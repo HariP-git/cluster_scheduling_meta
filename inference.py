@@ -128,6 +128,7 @@ async def main() -> None:
 
     try:
         last_reward = 0.0
+        task_labels = ["easy", "medium", "hard"]
 
         for step in range(1, MAX_STEPS + 1):
             if result.done:
@@ -140,12 +141,15 @@ async def main() -> None:
             
             # The expected stage mathematically cycles 1 through 6
             expected_stage = ((step - 1) % 6) + 1
+            task_idx = (step - 1) // 6
+            task_label = task_labels[task_idx] if task_idx < len(task_labels) else "unknown"
 
-            # Mention task difficulty and perform log_start for each task
+            # Print task header at the start of each 6-stage cycle
             if expected_stage == 1:
-                task_idx = ((step - 1) // 6)
-                diff = ["easy", "medium", "hard"][task_idx] if task_idx < 3 else "unknown"
-                print(f"\n{diff}", flush=True)
+                print(f"\n{'='*50}", flush=True)
+                print(f"  Task {task_idx + 1}/3: {task_label.upper()}", flush=True)
+                print(f"  Steps {step}-{step + 5}", flush=True)
+                print(f"{'='*50}", flush=True)
                 log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
             action_data = get_model_message(client, step, expected_stage, current_task, queue_length, last_reward, num_nodes, history)
@@ -169,28 +173,47 @@ async def main() -> None:
             steps_taken = step
             last_reward = reward
 
-            # Determine if this is the end of a task iteration for display purposes
+            # At stage 6, mark display_done=true to show task completion
             display_done = True if expected_stage == 6 else done
 
-            # Use standard log_step for all stages (Stage 6 will show done=true)
             action_str = json.dumps(action_data)
             log_step(step=step, action=action_str, reward=reward, done=display_done, error=error)
 
-            history.append(f"Stage {action_obj.stage_id} -> reward {reward:+.2f}")
+            history.append(f"Stage {action_obj.stage_id} -> reward {reward:+.02f}")
 
+            # ── Task boundary: print score summary at end of each 6-stage cycle ──
             if expected_stage == 6:
                 task_rewards = rewards[-6:]
                 task_score = sum(task_rewards) / max(1, len(task_rewards))
                 task_success = task_score >= SUCCESS_SCORE_THRESHOLD
                 rewards_str = ",".join(f"{r:.2f}" for r in task_rewards)
-                print(f"[END] success={str(task_success).lower()} score={task_score:.3f} rewards={rewards_str}", flush=True)
+                
+                # Pull total_reward from observation if server populated it
+                server_total = getattr(obs, "total_reward", None)
+
+                print(f"\n  ── {task_label.upper()} Task Complete ──", flush=True)
+                print(f"  Step        : {step}", flush=True)
+                print(f"  Done        : {display_done}", flush=True)
+                print(f"  Task Score  : {task_score:.3f}", flush=True)
+                if server_total is not None:
+                    print(f"  Total Reward: {server_total:.4f}", flush=True)
+                print(f"  Rewards     : [{rewards_str}]", flush=True)
+                print(f"[END] success={str(task_success).lower()} steps={step} score={task_score:.3f} rewards={rewards_str}", flush=True)
 
             if done:
                 break
 
+        # ── Final episode summary ──
         score = sum(rewards) / max(1, len(rewards))
         score = min(max(score, -1.0), 1.0)
         success = score >= SUCCESS_SCORE_THRESHOLD
+        
+        print(f"\n{'='*50}", flush=True)
+        print(f"  EPISODE COMPLETE", flush=True)
+        print(f"  Total Steps : {steps_taken}", flush=True)
+        print(f"  Final Score : {score:.3f}", flush=True)
+        print(f"  Success     : {success}", flush=True)
+        print(f"{'='*50}", flush=True)
 
     finally:
         try:
