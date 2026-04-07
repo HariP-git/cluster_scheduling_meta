@@ -321,9 +321,8 @@ class SchedulerEnvironment(Environment):
             else:
                 is_done = len(self.pending_tasks) == 0
             
-            total_reward = None
-            if is_done:
-                total_reward = round(sum(self.episode_rewards) / max(1, len(self.episode_rewards)), 4)
+            # Always provide total_reward for the task at stage 6 so the UI can display it!
+            total_reward = task_reward
             
             obs = self._build_observation(
                 reward=reward,
