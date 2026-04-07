@@ -11,6 +11,8 @@ from scheduler.models import SchedulerAction
 from scheduler.client import SchedulerEnv
 
 # Load environment variables from .env file
+load_dotenv()
+
 # ── Pre-Submission Configuration ─────────────────────────────────────────────
 # 1. Defaults are set only for API_BASE_URL and MODEL_NAME (not HF_TOKEN)
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
@@ -177,7 +179,13 @@ async def main() -> None:
                 is_automated_inference=True
             )
 
-            result = await env.step(action_obj)
+            try:
+                result = await env.step(action_obj)
+            except (BrokenPipeError, ConnectionError, Exception) as e:
+                print(f"\n[ERROR] Connection lost during step {step}: {e}")
+                print(f"[ERROR] Check if the server is still running on the expected port.")
+                break
+
             obs = result.observation
 
             reward = result.reward or 0.0
@@ -220,6 +228,12 @@ async def main() -> None:
             if done:
                 break
 
+    except (BrokenPipeError, ConnectionError) as e:
+        print(f"\n[CRITICAL] Network error during inference: {e}")
+        print(f"This usually occurs if the environment server crashes or is unreachable.")
+    except Exception as e:
+        print(f"\n[ERROR] Unexpected error during inference: {e}")
+    finally:
         # ── Final episode summary ──
         score = sum(rewards) / max(1, len(rewards))
         score = min(max(score, -1.0), 1.0)
@@ -232,7 +246,6 @@ async def main() -> None:
         print(f"  Success     : {success}", flush=True)
         print(f"{'='*50}", flush=True)
 
-    finally:
         try:
             if env is not None:
                 await env.close()
