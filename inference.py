@@ -14,10 +14,19 @@ from scheduler.client import SchedulerEnv
 load_dotenv()
 
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+# Check for API Key - switch to MOCK_MODE if missing
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+MOCK_MODE = not API_KEY
+
+if MOCK_MODE:
+    print("\n" + "!" * 60)
+    print("⚠️  WARNING: NO HF_TOKEN FOUND in .env file.")
+    print("🤖 SWITCHING TO MOCK AGENT MODE (No LLM required).")
+    print("!" * 60 + "\n")
+    MODEL_NAME = "Mock/Deterministic-Agent"
 
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
+MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct" if not MOCK_MODE else "Mock/Deterministic-Agent"
 TASK_NAME = os.getenv("SCHEDULER_TASK", "schedule_jobs")
 BENCHMARK = os.getenv("SCHEDULER_BENCHMARK", "scheduler")
 
@@ -78,7 +87,11 @@ def build_user_prompt(step: int, expected_stage: int, current_task: dict, queue_
         """
     ).strip()
 
-def get_model_message(client: OpenAI, step: int, expected_stage: int, current_task: dict, queue_length: int, last_reward: float, num_nodes: int, history: List[str]) -> dict:
+def get_model_message(client: Optional[OpenAI], step: int, expected_stage: int, current_task: dict, queue_length: int, last_reward: float, num_nodes: int, history: List[str]) -> dict:
+    if MOCK_MODE:
+        # Simply return the expected stage sequentially to demonstrate the environment
+        return {"stage_id": expected_stage}
+
     user_prompt = build_user_prompt(step, expected_stage, current_task, queue_length, last_reward, num_nodes, history)
     try:
         completion = client.chat.completions.create(
@@ -109,7 +122,7 @@ def get_model_message(client: OpenAI, step: int, expected_stage: int, current_ta
         return {"stage_id": expected_stage}
 
 async def main() -> None:
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY) if not MOCK_MODE else None
     env = None
     try:
         env = SchedulerEnv(base_url="http://localhost:7860")

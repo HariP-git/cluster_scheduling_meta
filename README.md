@@ -124,6 +124,13 @@ The `inference.py` script runs a rigorous **18-step benchmark** cycle across 3 t
 ```bash
 uv run python inference.py
 ```
+
+> [!TIP]
+> **No API Token? No Problem!**
+> If you don't have a Hugging Face `HF_TOKEN` yet, the script will automatically switch to **Mock Agent Mode**. This allows you to see the full 18-step scheduling loop in action using a deterministic logic, demonstrating the environment's capabilities without requiring an account.
+> 
+> To use a real AI (like Qwen2.5), simply add your `HF_TOKEN` to a `.env` file in the root directory.
+
 It will output a high-visibility summary at the end of every task, showing the agent's progress, its reward, and whether it successfully balanced the cluster.
 
 ---
