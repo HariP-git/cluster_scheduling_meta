@@ -1,14 +1,18 @@
 ---
-title: ECS using RL
-emoji: 🗓️
-colorFrom: gray
-colorTo: red
+title: ECS using RL - Cluster Scheduler
+emoji: 🤖
+colorFrom: indigo
+colorTo: purple
 sdk: docker
-pinned: false
+pinned: true
 app_port: 7860
 base_path: /
 tags:
   - openenv
+  - reinforcement-learning
+  - cluster-scheduling
+  - deep-q-network
+  - fastapi
   - rl
 ---
 
