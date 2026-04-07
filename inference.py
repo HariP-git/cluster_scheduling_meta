@@ -152,7 +152,8 @@ async def main() -> None:
             
             stage_id = action_data.get("stage_id", expected_stage)
             action_obj = SchedulerAction(
-                stage_id=stage_id
+                stage_id=stage_id,
+                is_automated_inference=True
             )
 
             result = await env.step(action_obj)

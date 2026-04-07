@@ -49,6 +49,10 @@ class SchedulerAction(Action):
         None,
         description="Stage 4 — node index chosen by the DQN agent.",
     )
+    is_automated_inference: bool = Field(
+        False,
+        description="Internal flag to indicate multi-task pipeline execution.",
+    )
     task_specs: Optional[Dict[str, int]] = Field(
         None,
         description="Stage 1 only — specific CPU/MEM/GPU override for inference.",

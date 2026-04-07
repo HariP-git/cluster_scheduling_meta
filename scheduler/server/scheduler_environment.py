@@ -198,11 +198,12 @@ class SchedulerEnvironment(Environment):
 
         # ── Stage execution via pluggable modules ──────────────────────────
         if action.stage_id == 1:  # Intake
-            if action.difficulty is not None or action.task_specs is not None:
-                self._pipeline_context["manual_mode"] = True
+            # UI omits the automated flag, making it manual_mode = True. Inference sets it to True.
+            self._pipeline_context["manual_mode"] = not getattr(action, "is_automated_inference", False)
+            
+            if self._pipeline_context["manual_mode"]:
                 difficulty = action.difficulty or "medium"
             else:
-                self._pipeline_context["manual_mode"] = False
                 difficulty = self.pending_tasks.pop(0) if self.pending_tasks else "medium"
                 
             difficulty = difficulty.lower()
