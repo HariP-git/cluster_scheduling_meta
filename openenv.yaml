@@ -3,7 +3,7 @@ name: scheduler
 description: A 6-stage cluster scheduler simulation representing a real-world HPC queuing and placement system.
 type: space
 runtime: fastapi
-app: server.app:app
+app: scheduler.server.app:app
 port: 7860
 difficulty_levels: 3
 reward_range: [0.0, 1.0]
