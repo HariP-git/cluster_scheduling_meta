@@ -10,11 +10,11 @@ Autonomous Scheduler Agent (DQN Powered).
 Advances through the 6-stage scheduling pipeline for each episode.
 Uses a Deep Q-Network (PyTorch) to automatically learn optimal Best-Fit assignment strategies.
 
-Usage (requires server running on localhost:8000):
+Usage (requires server running on localhost:7860):
     python -m scheduler.agent
 
     # Or connect to a remote server:
-    python -m scheduler.agent --url http://remote-host:8000
+    python -m scheduler.agent --url http://remote-host:7860
 
     # Run multiple episodes:
     python -m scheduler.agent --episodes 5
@@ -203,8 +203,8 @@ def main():
     parser = argparse.ArgumentParser(description="Autonomous Scheduler Agent (DQN)")
     parser.add_argument(
         "--url",
-        default="http://localhost:8000",
-        help="Base URL of the scheduler server (default: http://localhost:8000)",
+        default="http://localhost:7860",
+        help="Base URL of the scheduler server (default: http://localhost:7860)",
     )
     parser.add_argument(
         "--episodes",
@@ -256,7 +256,7 @@ def main():
         print(
             f"\nError: Could not connect to {args.url}\n"
             f"Make sure the server is running:\n"
-            f"  cd d:\\meta\\scheduler && uvicorn server.app:app --reload --port 8000",
+            f"  cd d:\\meta\\scheduler && uvicorn server.app:app --reload --port 7860",
             file=sys.stderr,
         )
         sys.exit(1)

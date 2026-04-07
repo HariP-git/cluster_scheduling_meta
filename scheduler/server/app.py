@@ -19,10 +19,10 @@ Endpoints:
 
 Usage:
     # Development (with auto-reload):
-    uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
+    uvicorn server.app:app --reload --host 0.0.0.0 --port 7860
 
     # Production:
-    uvicorn server.app:app --host 0.0.0.0 --port 8000 --workers 4
+    uvicorn server.app:app --host 0.0.0.0 --port 7860 --workers 4
 
     # Or run directly:
     python -m server.app
@@ -74,7 +74,7 @@ def main():
     Entry point for `uv run server`.
 
     Usage:
-        uv run server                   # default host=0.0.0.0, port=8000
+        uv run server                   # default host=0.0.0.0, port=7860
         uv run server --port 8001
         uv run server --host 127.0.0.1 --port 8080 --reload
     """
@@ -83,7 +83,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Scheduler Environment Server")
     parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    parser.add_argument("--port", type=int, default=7860, help="Bind port (default: 7860)")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev mode)")
     args = parser.parse_args()
 

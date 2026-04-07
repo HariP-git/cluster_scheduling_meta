@@ -5,7 +5,7 @@ colorFrom: gray
 colorTo: red
 sdk: docker
 pinned: false
-app_port: 8000
+app_port: 7860
 base_path: /web
 tags:
   - openenv
@@ -36,7 +36,7 @@ reset() → step(intake) → step(profiling) → step(matching)
 ```python
 from scheduler import SchedulerAction, SchedulerEnv
 
-with SchedulerEnv(base_url="http://localhost:8000").sync() as env:
+with SchedulerEnv(base_url="http://localhost:7860").sync() as env:
     result = env.reset()
 
     for stage_id in range(1, 7):
@@ -99,12 +99,12 @@ The bundled agent uses a **PyTorch Deep Q-Network**:
 ```bash
 # Terminal 1 — start the server
 cd d:\meta\scheduler
-uvicorn server.app:app --reload --port 8000
+uvicorn server.app:app --reload --port 7860
 
 # Terminal 2 — run the DQN agent
 uv run python -m scheduler.agent
 uv run python -m scheduler.agent --episodes 10
-uv run python -m scheduler.agent --url http://remote-host:8000 --quiet
+uv run python -m scheduler.agent --url http://remote-host:7860 --quiet
 ```
 
 ## Development & Testing

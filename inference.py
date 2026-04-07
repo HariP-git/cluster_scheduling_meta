@@ -108,7 +108,7 @@ async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     env = None
     try:
-        env = SchedulerEnv(base_url="http://localhost:8000")
+        env = SchedulerEnv(base_url="http://localhost:7860")
         result = await env.reset()
     except Exception as e:
         print(f"[ERROR] Could not connect to default local server: {e}")

@@ -25,7 +25,7 @@ class SchedulerEnv(
     for resetting the environment and stepping through pipeline stages.
 
     Example:
-        >>> with SchedulerEnv(base_url="http://localhost:8000") as env:
+        >>> with SchedulerEnv(base_url="http://localhost:7860") as env:
         ...     result = env.reset()
         ...     print(f"First stage: {result.observation.stage}")
         ...

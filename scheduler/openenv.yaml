@@ -4,7 +4,7 @@ description: A 6-stage cluster scheduler simulation representing a real-world HP
 type: space
 runtime: fastapi
 app: server.app:app
-port: 8000
+port: 7860
 difficulty_levels: 3
 reward_range: [0.0, 1.0]
 episode_length: 18
