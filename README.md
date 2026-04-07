@@ -126,7 +126,37 @@ It will output a high-visibility summary at the end of every task, showing the a
 
 ---
 
-## 📂 8. Project Layout
+## 👁️ 8. Detailed Observation Mapping
+
+The environment returns a complex observation object. Below is the mapping for the **35-element State Vector** and the human-readable metadata.
+
+### 📊 State Vector Index Mapping (Indices 0-34)
+
+| Index Range | Category | Description | Typical Value |
+| :--- | :--- | :--- | :--- |
+| **0 - 29** | **Cluster Nodes** | 10 nodes × 3 resources (CPU, Mem, GPU availability %). | `0.3` (30% free) |
+| **30 - 32** | **Task Demand** | The specific CPU, Mem, and GPU units required by the active task. | `12.0` (Medium) |
+| **33** | **Stage ID** | The current 1-indexed stage of the pipeline (intake to monitoring). | `1.0` to `6.0` |
+| **34** | **Queue Len** | Number of tasks remaining in the multi-task episode. | `3.0` to `1.0` |
+
+### 🧩 Metadata Structure (`info`)
+
+The `info` dictionary (also aliased as `metadata`) provides a human-readable snapshot of the cluster, allowing for easy debugging without decoding the state vector.
+
+```json
+{
+  "readable_cluster_state_free_pct": {
+    "Node 0": [0.3, 0.3, 0.3],
+    "Node 1": [0.3, 0.3, 0.3],
+    "...": "...",
+    "Node 9": [0.3, 0.3, 0.3]
+  }
+}
+```
+
+---
+
+## 📂 9. Project Layout
 
 ```bash
 .
