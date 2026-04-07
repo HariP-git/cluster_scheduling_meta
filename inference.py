@@ -4,10 +4,14 @@ import os
 import textwrap
 from typing import List, Optional
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
 from scheduler.models import SchedulerAction
 from scheduler.client import SchedulerEnv
+
+# Load environment variables from .env file
+load_dotenv()
 
 IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
