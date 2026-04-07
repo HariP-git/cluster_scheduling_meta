@@ -91,8 +91,18 @@ $$ Reward = 0.40 \times U + 0.30 \times B + 0.30 \times F - P $$
 This project features a vibrant, modern web interface. You can manually play the role of the scheduler to understand the constraints.
 
 ### Steps to give input:
+
+> [!IMPORTANT]
+> **Input Range:** The **Stage Id** must be a number from **`1`** to **`6`**. 
+> *   **1 - Intake**: Task generation/loading.
+> *   **2 - Profiling**: Scanning cluster telemetry.
+> *   **3 - Matching**: Finding eligible nodes.
+> *   **4 - Assignment**: Placing task on the target node.
+> *   **5 - Balancing**: Equalizing cluster-wide loads.
+> *   **6 - Monitoring**: Finalizing rewards & success state.
+
 1.  **Reset**: Click the **Reset** button to initialize a fresh 10-node cluster (pre-loaded at 70% capacity).
-2.  **Stage Selector**: Enter a number `1` through `6` in the **Stage Id** box.
+2.  **Stage Selector**: Enter a number **`1`** through **`6`** in the **Stage Id** box.
 3.  **Step**: 
     - At `Stage 1`, the system generates a new task.
     - At `Stage 4`, the system automatically uses a **Best-Fit algorithm** to handle the placement based on your current state.
