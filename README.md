@@ -1,8 +1,5 @@
 ---
 title: ECS using RL - Cluster Scheduler
-emoji: 🤖
-colorFrom: indigo
-colorTo: purple
 sdk: docker
 pinned: true
 app_port: 7860
