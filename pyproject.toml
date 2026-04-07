@@ -12,14 +12,13 @@ dependencies = [
 ]
 
 [project.scripts]
-server = "scheduler.server.app:main"
+server = "server.app:main"
 
 [tool.uv]
 package = true
 
-[tool.setuptools.package-dir]
-"scheduler" = "scheduler"
-"scheduler.server" = "scheduler/server"
+[tool.setuptools]
+packages = ["scheduler", "server", "server.modules"]
 
 [tool.pyright]
-extraPaths = ["scheduler", "scheduler/server"]
+extraPaths = ["scheduler", "server"]
