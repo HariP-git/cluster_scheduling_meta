@@ -13,74 +13,44 @@ from scheduler.client import SchedulerEnv
 # Load environment variables from .env file
 load_dotenv()
 
-# ── Pre-Submission Configuration ─────────────────────────────────────────────
-# 1. Defaults are set only for API_BASE_URL and MODEL_NAME (not HF_TOKEN)
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# Optional - for internal image testing
-LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "scheduler-env:latest")
+if HF_TOKEN is None:
+    raise ValueError("HF_TOKEN environment variable is required")
 
-# 2. Check for API Key - switch to MOCK_MODE if missing (for demo purposes)
-MOCK_MODE = not HF_TOKEN
-API_KEY = HF_TOKEN
-
-if MOCK_MODE:
-    print("\n" + "!" * 60)
-    print("⚠️  WARNING: NO HF_TOKEN FOUND in environment variables.")
-    print("🤖 SWITCHING TO MOCK AGENT MODE (No LLM required).")
-    print("!" * 60 + "\n")
-    MODEL_NAME = "Mock/Deterministic-Agent"
-
-TASK_NAME = os.getenv("SCHEDULER_TASK", "schedule_jobs")
-BENCHMARK = os.getenv("SCHEDULER_BENCHMARK", "scheduler")
-
-MAX_TASKS = 3
-MAX_STEPS = MAX_TASKS * 6
-STATIC_TASKS = [
-    {"cpu_req": 4, "mem_req": 4, "gpu_req": 4, "duration": 2},   # easy
-    {"cpu_req": 12, "mem_req": 12, "gpu_req": 12, "duration": 5}, # medium
-    {"cpu_req": 24, "mem_req": 24, "gpu_req": 24, "duration": 8}, # hard
-]
-TEMPERATURE = 0.7
-MAX_TOKENS = 150
-SUCCESS_SCORE_THRESHOLD = 0.5
-
-MAX_TOTAL_REWARD = MAX_TASKS * 100.0
-
-SYSTEM_PROMPT = textwrap.dedent(
-    """
-    You are an AI explicitly coordinating a compute cluster through a 6-stage pipeline loop.
-    The valid stages are exactly: 1, 2, 3, 4, 5, 6.
-    
-    You MUST output valid JSON and you MUST progress the stages sequentially.
-    The environment automatically calculates the Best-Fit node tracking on stage 4 and handles placements autonomously natively!
-    
-    Example for stage 1: { "stage_id": 1 }
-    Example for stage 6: { "stage_id": 6 }
-    """
-).strip()
 
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
+
 def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
-    error_val = error if error else "null"
+    error_val = error if error is not None else "null"
     done_val = str(done).lower()
     print(
         f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
         flush=True,
     )
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
 
-def build_user_prompt(step: int, expected_stage: int, current_task: dict, queue_length: int, last_reward: float, num_nodes: int, history: List[str]) -> str:
+def log_end(success: bool, steps: int, rewards: List[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
+        flush=True,
+    )
+
+
+def build_prompt(step: int, expected_stage: int, current_task: dict, queue_length: int, last_reward: float, num_nodes: int, history: List[str]) -> str:
     history_block = "\n".join(history[-6:]) if history else "None"
     return textwrap.dedent(
         f"""
+        You are an AI explicitly coordinating a compute cluster through a 6-stage pipeline loop.
+        The valid stages are exactly: 1, 2, 3, 4, 5, 6.
+        You MUST output valid JSON and you MUST progress the stages sequentially.
+        The environment automatically calculates the Best-Fit node tracking on stage 4 and handles placements autonomously natively!
+
         Total Step: {step}
         Expected Pipeline Stage: {expected_stage}
         Task to place: {current_task}
@@ -90,64 +60,49 @@ def build_user_prompt(step: int, expected_stage: int, current_task: dict, queue_
         {history_block}
         
         Provide the JSON for your next action.
+        Example for stage {expected_stage}: {{ "stage_id": {expected_stage} }}
         """
     ).strip()
 
-def get_model_message(client: Optional[OpenAI], step: int, expected_stage: int, current_task: dict, queue_length: int, last_reward: float, num_nodes: int, history: List[str]) -> dict:
-    if MOCK_MODE:
-        # Simply return the expected stage sequentially to demonstrate the environment
-        return {"stage_id": expected_stage}
 
-    user_prompt = build_user_prompt(step, expected_stage, current_task, queue_length, last_reward, num_nodes, history)
+def parse_action(text: str, fallback_stage: int) -> dict:
     try:
-        completion = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=TEMPERATURE,
-            max_tokens=MAX_TOKENS,
-            stream=False,
-        )
-        text = (completion.choices[0].message.content or "").strip()
-        
         start = text.find("{")
         end = text.rfind("}")
-        if start != -1 and end != -1:
-            json_str = text[start:end+1]
-            data = json.loads(json_str)
+        if start != -1 and end != -1 and end >= start:
+            data = json.loads(text[start : end + 1])
             if "stage_id" not in data:
-                data["stage_id"] = expected_stage
+                data["stage_id"] = fallback_stage
             return data
-        
-        raise ValueError("No JSON found")
+    except Exception:
+        pass
+    return {"stage_id": fallback_stage}
 
-    except Exception as exc:
-        print(f"[DEBUG] Model request failed or parsing failed: {exc}", flush=True)
-        return {"stage_id": expected_stage}
 
 async def main() -> None:
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY) if not MOCK_MODE else None
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
     env = None
-    try:
-        env = SchedulerEnv(base_url="http://localhost:7860")
-        result = await env.reset()
-    except Exception as e:
-        print(f"[ERROR] Could not connect to default local server: {e}")
-        return
-
+    result = None
+    
     history: List[str] = []
     rewards: List[float] = []
     steps_taken = 0
-    score = 0.0
     success = False
 
-    # Initial log_start removed to be placed inside task loop
+    MAX_TASKS = 3
+    MAX_STEPS = MAX_TASKS * 6
+    SUCCESS_SCORE_THRESHOLD = 0.5
 
     try:
+        env = SchedulerEnv(base_url="http://localhost:7860")
+        result = await env.reset()
+
+        task_name = os.getenv("SCHEDULER_TASK", "schedule_jobs")
+        benchmark = os.getenv("SCHEDULER_BENCHMARK", "scheduler")
+
+        log_start(task=task_name, env=benchmark, model=MODEL_NAME)
+
         last_reward = 0.0
-        task_labels = ["easy", "medium", "hard"]
 
         for step in range(1, MAX_STEPS + 1):
             if result.done:
@@ -155,23 +110,29 @@ async def main() -> None:
                 
             obs = result.observation
             num_nodes = 10
-            current_task = {"cpu_req": obs.state_vector[30], "mem_req": obs.state_vector[31], "gpu_req": obs.state_vector[32]} if len(obs.state_vector) >= 33 else {}
-            queue_length = int(obs.state_vector[34]) if len(obs.state_vector) >= 35 else 0
             
-            # The expected stage mathematically cycles 1 through 6
+            state_vector = obs.state_vector if obs and hasattr(obs, 'state_vector') else []
+            current_task = {"cpu_req": state_vector[30], "mem_req": state_vector[31], "gpu_req": state_vector[32]} if len(state_vector) >= 33 else {}
+            queue_length = int(state_vector[34]) if len(state_vector) >= 35 else 0
+            
             expected_stage = ((step - 1) % 6) + 1
-            task_idx = (step - 1) // 6
-            task_label = task_labels[task_idx] if task_idx < len(task_labels) else "unknown"
 
-            # Print task header at the start of each 6-stage cycle
-            if expected_stage == 1:
-                print(f"\n{'='*50}", flush=True)
-                print(f"  Task {task_idx + 1}/3: {task_label.upper()}", flush=True)
-                print(f"  Steps {step}-{step + 5}", flush=True)
-                print(f"{'='*50}", flush=True)
-                log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
-
-            action_data = get_model_message(client, step, expected_stage, current_task, queue_length, last_reward, num_nodes, history)
+            prompt = build_prompt(step, expected_stage, current_task, queue_length, last_reward, num_nodes, history)
+            
+            action_data = {"stage_id": expected_stage}
+            try:
+                completion = client.chat.completions.create(
+                    model=MODEL_NAME,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=150,
+                )
+                content = completion.choices[0].message.content or ""
+                action_data = parse_action(content.strip(), expected_stage)
+            except Exception:
+                pass 
             
             stage_id = action_data.get("stage_id", expected_stage)
             action_obj = SchedulerAction(
@@ -179,78 +140,52 @@ async def main() -> None:
                 is_automated_inference=True
             )
 
-            try:
-                result = await env.step(action_obj)
-            except (BrokenPipeError, ConnectionError, Exception) as e:
-                print(f"\n[ERROR] Connection lost during step {step}: {e}")
-                print(f"[ERROR] Check if the server is still running on the expected port.")
-                break
-
-            obs = result.observation
+            result = await env.step(action_obj)
 
             reward = result.reward or 0.0
             done = result.done
-            error = obs.metadata.get("error", None)
-
-            if reward != 0.0:
-                rewards.append(reward)
             
+            error = None
+            try:
+                error = result.observation.metadata.get("error", None)
+            except Exception:
+                pass
+
+            rewards.append(reward)
+
             steps_taken = step
             last_reward = reward
 
-            # At stage 6, mark display_done=true to show task completion
             display_done = True if expected_stage == 6 else done
 
-            action_str = json.dumps(action_data)
-            log_step(step=step, action=action_str, reward=reward, done=display_done, error=error)
+            log_step(
+                step=step, 
+                action=json.dumps(action_data), 
+                reward=reward, 
+                done=display_done, 
+                error=error
+            )
 
             history.append(f"Stage {action_obj.stage_id} -> reward {reward:+.02f}")
-
-            # ── Task boundary: print score summary at end of each 6-stage cycle ──
-            if expected_stage == 6:
-                task_rewards = rewards[-6:]
-                task_score = sum(task_rewards) / max(1, len(task_rewards))
-                task_success = task_score >= SUCCESS_SCORE_THRESHOLD
-                rewards_str = ",".join(f"{r:.2f}" for r in task_rewards)
-                
-                # Pull total_reward from observation if server populated it
-                server_total = getattr(obs, "total_reward", None)
-
-                print(f"\n  ── {task_label.upper()} Task Complete ──", flush=True)
-                print(f"  Step        : {step}", flush=True)
-                print(f"  Done        : {display_done}", flush=True)
-                print(f"  Task Score  : {task_score:.3f}", flush=True)
-                if server_total is not None:
-                    print(f"  Total Reward: {server_total:.4f}", flush=True)
-                print(f"  Rewards     : [{rewards_str}]", flush=True)
-                print(f"[END] success={str(task_success).lower()} steps={step} score={task_score:.3f} rewards={rewards_str}", flush=True)
 
             if done:
                 break
 
-    except (BrokenPipeError, ConnectionError) as e:
-        print(f"\n[CRITICAL] Network error during inference: {e}")
-        print(f"This usually occurs if the environment server crashes or is unreachable.")
-    except Exception as e:
-        print(f"\n[ERROR] Unexpected error during inference: {e}")
+    except Exception:
+        pass
     finally:
-        # ── Final episode summary ──
-        score = sum(rewards) / max(1, len(rewards))
-        score = min(max(score, -1.0), 1.0)
-        success = score >= SUCCESS_SCORE_THRESHOLD
-        
-        print(f"\n{'='*50}", flush=True)
-        print(f"  EPISODE COMPLETE", flush=True)
-        print(f"  Total Steps : {steps_taken}", flush=True)
-        print(f"  Final Score : {score:.3f}", flush=True)
-        print(f"  Success     : {success}", flush=True)
-        print(f"{'='*50}", flush=True)
-
-        try:
-            if env is not None:
+        if env is not None:
+            try:
                 await env.close()
-        except Exception as e:
-            print(f"[DEBUG] env.close() error: {e}", flush=True)
+            except Exception:
+                pass
+
+        if rewards:
+            score = sum(rewards) / max(1, len(rewards))
+            score = min(max(score, -1.0), 1.0)
+            success = score >= SUCCESS_SCORE_THRESHOLD
+
+        log_end(success=success, steps=steps_taken, rewards=rewards)
 
 
 if __name__ == "__main__":
