@@ -41,12 +41,13 @@ SYSTEM_PROMPT = textwrap.dedent(
 ).strip()
 
 
+# ✅ UPDATED CLAMP FUNCTION
 def clamp_reward(val: float, limit: float = 0.99) -> float:
-    """Ensure reward is strictly within (0, 1) for Phase 2 compliance."""
+    """Ensure reward is strictly within (0.1, 0.99)."""
     try:
-        return min(max(float(val), 0.01), limit)
+        return min(max(float(val), 0.1), limit)
     except (ValueError, TypeError):
-        return 0.01
+        return 0.1
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -134,14 +135,13 @@ async def main() -> None:
             elif "hard" in current_task_id.lower():
                 difficulty = "hard"
 
-            # ── Pretty Header (Manual Mode Only) ──
             if not is_platform_run:
                 print(f"\n{'='*50}", flush=True)
                 print(f"  Task {task_idx + 1}/3: {current_task_id.upper()}", flush=True)
                 print(f"{'='*50}", flush=True)
 
             log_start(task=current_task_id, env=benchmark, model=MODEL_NAME)
-            last_reward = 0.0
+            last_reward = 0.1  # ✅ start within valid range
             
             # 6-stage pipeline loop
             for sub_step in range(1, 7):
@@ -159,11 +159,16 @@ async def main() -> None:
                 
                 action_data = {"stage_id": expected_stage}
                 
-                if MOCK_MODE:
-                    action_data = {"stage_id": expected_stage}
-                else:
+                if not MOCK_MODE:
                     try:
-                        prompt = build_user_prompt(current_global_step, expected_stage, current_task_reqs, queue_length, last_reward, history)
+                        prompt = build_user_prompt(
+                            current_global_step,
+                            expected_stage,
+                            current_task_reqs,
+                            queue_length,
+                            last_reward,
+                            history
+                        )
                         completion = client.chat.completions.create(
                             model=MODEL_NAME,
                             messages=[
@@ -173,7 +178,10 @@ async def main() -> None:
                             temperature=0.7,
                             max_tokens=150,
                         )
-                        action_data = parse_action(completion.choices[0].message.content or "", expected_stage)
+                        action_data = parse_action(
+                            completion.choices[0].message.content or "",
+                            expected_stage
+                        )
                     except Exception:
                         pass 
                 
@@ -187,14 +195,15 @@ async def main() -> None:
                 action_obj = SchedulerAction(**action_kwargs)
                 result = await env.step(action_obj)
 
-                reward_to_log = result.reward or 0.0
-                if expected_stage == 6 and hasattr(result.observation, 'total_reward') and result.observation.total_reward is not None:
-                    reward_to_log = result.observation.total_reward
-                    task_rewards.append(reward_to_log)
+                reward_to_log = clamp_reward(result.reward or 0.1)
 
-                    # Task Boundary Info (Manual Mode)
-                    if not is_platform_run:
-                        print(f"  [INFO] {current_task_id} completed. score: {reward_to_log:.2f}", flush=True)
+                if expected_stage == 6 and hasattr(result.observation, 'total_reward'):
+                    if result.observation.total_reward is not None:
+                        reward_to_log = clamp_reward(result.observation.total_reward)
+                        task_rewards.append(reward_to_log)
+
+                        if not is_platform_run:
+                            print(f"  [INFO] {current_task_id} completed. score: {reward_to_log:.2f}", flush=True)
 
                 error = None
                 try:
@@ -226,13 +235,13 @@ async def main() -> None:
             except Exception:
                 pass
 
+        # ✅ fallback fixed
         if not task_rewards:
-            task_rewards = [0.01] * len(tasks_to_run)
+            task_rewards = [0.1] * len(tasks_to_run)
             
         score = sum(task_rewards) / len(task_rewards)
         success = score >= SUCCESS_SCORE_THRESHOLD
 
-        # ── Final Episode Summary (Manual Mode) ──
         if not is_platform_run:
             print(f"\n{'='*50}", flush=True)
             print(f"  EPISODE COMPLETE | Score: {score:.3f} | Success: {success}", flush=True)
