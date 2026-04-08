@@ -9,13 +9,21 @@ difficulty_levels: 3
 reward_range: [0.0, 1.0]
 episode_length: 18
 tasks:
-  - id: scheduling
-    name: Cluster Scheduler Tasks
-    description: Evaluate agent's ability to maximize cluster fill rate
+  - id: scheduling_easy
+    name: Easy Scheduler Task
+    description: High resource overhead, easy placement
     agent_graders:
       - id: easy_grader
         name: Easy Fit
+  - id: scheduling_medium
+    name: Medium Scheduler Task
+    description: Balanced resources, moderate placement complexity
+    agent_graders:
       - id: medium_grader
         name: Medium Fit
+  - id: scheduling_hard
+    name: Hard Scheduler Task
+    description: Tight constraints, optimal placement required
+    agent_graders:
       - id: hard_grader
         name: Hard Fit

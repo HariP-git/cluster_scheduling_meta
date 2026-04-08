@@ -270,8 +270,8 @@ class SchedulerEnvironment(Environment):
                 self.current_fit_quality = reward
             else:
                 self.current_job_success = False
-                # Penalise the agent — negative reward so DQN clearly learns failure
-                reward = -0.3
+                # Penalise the agent slightly but stay within [0.01, 0.99]
+                reward = 0.05
                 error_msg = "Task could not be placed after 4 retries."
 
         elif action.stage_id == 5:  # Balancing
@@ -285,28 +285,24 @@ class SchedulerEnvironment(Environment):
             ]
             avg = sum(utils) / len(utils)
             variance = sum((u - avg) ** 2 for u in utils) / max(1, len(utils))
-            reward = round(max(0.0, 1.0 - variance * 20), 4)
+            reward = 1.0 - variance * 20 # will be clamped in common logic below
 
         elif action.stage_id == 6:  # Monitoring
             ctx = self._monitor.execute(self.cluster, self._pipeline_context)
             self._pipeline_context.update(ctx)
             self._stage_reports["monitoring"] = self._monitor.get_report()
 
-            reward = round(
-                self.total_successful / max(1, self.total_evaluated), 4
-            )
+            reward = round(max(0.01, min(0.99, self.total_successful / max(1, self.total_evaluated))), 4)
 
         # Stage 4 (assignment) may return a negative penalty; all others clamped to [0, 1]
-        if action.stage_id == 4:
-            reward = round(max(-1.0, min(1.0, float(reward))), 4)
-        else:
-            reward = round(max(0.0, min(1.0, float(reward))), 4)
+        # Strict clamp to [0.01, 0.99] for every stage
+        reward = round(max(0.01, min(0.99, float(reward))), 4)
         self.stage_rewards.append(reward)
 
         # ── Advance or complete ────────────────────────────────────────────
         if action.stage_id == 6:
             task_reward = round(
-                sum(self.stage_rewards) / max(1, len(self.stage_rewards)), 4
+                max(0.01, min(0.99, sum(self.stage_rewards) / max(1, len(self.stage_rewards)))), 4
             )
             self.episode_rewards.append(task_reward)
             
