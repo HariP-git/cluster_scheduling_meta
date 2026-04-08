@@ -168,6 +168,12 @@ async def main() -> None:
 
             history.append(f"Stage {action_obj.stage_id} -> reward {reward:+.02f}")
 
+            if expected_stage == 6:
+                task_idx = (step - 1) // 6
+                task_labels = ["Easy", "Medium", "Hard"]
+                task_label = task_labels[task_idx] if task_idx < len(task_labels) else "Unknown"
+                print(f"[INFO] {task_label} task completed", flush=True)
+
             if done:
                 break
 
